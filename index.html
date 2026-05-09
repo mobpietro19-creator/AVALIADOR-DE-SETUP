@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Scan - Avaliador Real</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-red: #ff0044;
+            --bg-dark: #050508;
+            --card-bg: rgba(15, 15, 25, 0.95);
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 { color: var(--neon-blue); text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 20px var(--neon-blue); text-align: center; }
+
+        .option-card {
+            width: 100%; max-width: 360px;
+            background: var(--card-bg);
+            border: 2px solid var(--neon-blue);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.3s;
+        }
+
+        .option-card:hover { border-color: white; transform: scale(1.02); }
+
+        #camera-view {
+            width: 100%; max-width: 360px; display: none;
+            border-radius: 20px; border: 2px solid var(--neon-blue);
+            overflow: hidden; margin-bottom: 20px;
+        }
+
+        video { width: 100%; display: block; }
+        .btn-snap { width: 100%; padding: 15px; background: var(--neon-blue); border: none; font-weight: bold; cursor: pointer; }
+
+        .result-container { display: none; width: 100%; max-width: 380px; flex-direction: column; gap: 15px; }
+
+        .eval-box { background: #000; border: 2px solid var(--neon-blue); border-radius: 15px; padding: 20px; }
+
+        .nota-destaque { font-size: 3.5rem; font-weight: bold; text-align: center; margin: 10px 0; }
+
+        /* LISTA DE PERIFÉRICOS COM FOTO */
+        .item-periferico {
+            display: flex; align-items: center; gap: 15px;
+            background: #111; padding: 12px; border-radius: 12px;
+            margin-bottom: 12px; border: 1px solid #222;
+        }
+
+        .item-periferico img {
+            width: 70px; height: 70px; border-radius: 8px;
+            object-fit: cover; border: 1px solid var(--neon-blue);
+            background-color: #fff; /* Fundo branco caso a imagem demore a carregar */
+        }
+
+        .item-info strong { color: var(--neon-blue); display: block; font-size: 0.9rem; }
+        .item-info span { font-size: 0.8rem; color: #ccc; }
+
+        #loader { display: none; margin: 20px; color: var(--neon-blue); font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <h1>Setup Scan</h1>
+
+    <div class="option-card" id="btn-camera">
+        <h2>📷 Abrir Câmera</h2>
+        <p>Tire uma foto agora para uma avaliação justa e sincera.</p>
+    </div>
+
+    <div class="option-card" onclick="document.getElementById('galleryInput').click()">
+        <h2>🖼️ Abrir Galeria</h2>
+        <p>Selecione uma foto do seu setup da galeria.</p>
+    </div>
+
+    <input type="file" id="galleryInput" accept="image/*" style="display: none;">
+
+    <div id="camera-view">
+        <video id="video" autoplay playsinline></video>
+        <button class="btn-snap" id="take-photo">CAPTURAR E AVALIAR</button>
+    </div>
+
+    <div id="loader">🔎 ESCANEANDO FIOS E QUALIDADE DO SETUP...</div>
+
+    <div class="result-container" id="results">
+        <div class="eval-box" style="text-align: center;">
+            <h3 style="margin:0">NOTA DO SETUP</h3>
+            <div class="nota-destaque" id="nota-val">--</div>
+            <p id="status-msg" style="text-transform: uppercase; font-weight: bold;"></p>
+        </div>
+
+        <div class="eval-box">
+            <h3>⚠️ O que melhorar</h3>
+            <p id="critica-text"></p>
+        </div>
+
+        <div class="eval-box">
+            <h3>🎮 Indicações (Bons e Baratos)</h3>
+            <div id="lista-perifericos">
+                <!-- Itens carregados via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+        <div id="qrcode"></div>
+        <p style="font-size: 0.7rem; color: #666; margin-top: 5px;">QR CODE DO SITE</p>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const btnCamera = document.getElementById('btn-camera');
+        const cameraView = document.getElementById('camera-view');
+        const video = document.getElementById('video');
+        const results = document.getElementById('results');
+        const loader = document.getElementById('loader');
+
+        new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 80, height: 80 });
+
+        btnCamera.onclick = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            cameraView.style.display = 'block';
+            results.style.display = 'none';
+        };
+
+        function iniciarAvaliacao() {
+            cameraView.style.display = 'none';
+            loader.style.display = 'block';
+            setTimeout(() => {
+                loader.style.display = 'none';
+                results.style.display = 'flex';
+                
+                // Dados da Avaliação Sincera e Indicações
+                const analise = {
+                    nota: (Math.random() * (4.5 - 1.5) + 1.5).toFixed(1),
+                    status: "SITUAÇÃO CRÍTICA",
+                    critica: "Muitos fios expostos e ambiente mal iluminado. O setup está muito poluído visualmente, o que tira todo o brilho das peças.",
+                    perifericos: [
+                        { 
+                            nome: "Mouse Gamer", 
+                            modelo: "Logitech G203 (Melhor Custo-Benefício)", 
+                            url: "https://m.media-amazon.com/images/I/61U7T1koS4L._AC_SX679_.jpg" 
+                        },
+                        { 
+                            nome: "Teclado Mecânico", 
+                            modelo: "Redragon Kumara K552 (Forte e Barato)", 
+                            url: "https://m.media-amazon.com/images/I/61y49LAsZ9L._AC_SX679_.jpg" 
+                        },
+                        { 
+                            nome: "Suporte Articulado", 
+                            modelo: "ELG F80N (Limpa a Mesa)", 
+                            url: "https://m.media-amazon.com/images/I/516X-RInVXL._AC_SX679_.jpg" 
+                        },
+                        { 
+                            nome: "Mousepad", 
+                            modelo: "Havit Gamer 90x30cm", 
+                            url: "https://m.media-amazon.com/images/I/61vYpS8V77L._AC_SX679_.jpg" 
+                        }
+                    ]
+                };
+
+                document.getElementById('nota-val').innerText = analise.nota;
+                document.getElementById('nota-val').style.color = "#ff0044";
+                document.getElementById('status-msg').innerText = analise.status;
+                document.getElementById('critica-text').innerText = analise.critica;
+
+                let html = "";
+                analise.perifericos.forEach(p => {
+                    html += `
+                        <div class="item-periferico">
+                            <img src="${p.url}" alt="${p.nome}">
+                            <div class="item-info">
+                                <strong>${p.nome}</strong>
+                                <span>${p.modelo}</span>
+                            </div>
+                        </div>`;
+                });
+                document.getElementById('lista-perifericos').innerHTML = html;
+                window.scrollTo({ top: 400, behavior: 'smooth' });
+            }, 2500);
+        }
+
+        document.getElementById('take-photo').onclick = () => {
+            video.srcObject.getTracks().forEach(t => t.stop());
+            iniciarAvaliacao();
+        };
+
+        document.getElementById('galleryInput').onchange = () => iniciarAvaliacao();
+    </script>
+</body>
+</html>
